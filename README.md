@@ -37,7 +37,7 @@ name="SoftnasAzTest"
 ```
 ### Now launch the template using Azure CLI and pass in all the parameters using the --parameters flag:
 ```
-az group deployment create --resource-group $rg_name --template-file azure_single_network.json --parameters\
+az group deployment create --resource-group 'AzureTestRG' --template-file azure_single_network.json --parameters\
  dnsLabelPrefix="$name"\
  region="centralus"\
  rg_name="test_rg"\
