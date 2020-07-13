@@ -1,67 +1,88 @@
-# CloudFormation
-## CloudFormation Template Examples for Launching SoftNAS
+# Azure ARM
+## ARM Template Examples for Launching SoftNAS
 
-There are two templates. One is a template for a single instance and the other template is for HA pair. The required parameters used in the template are located at the top of the JSON inside the ```Parameters {}``` section. Most values are empty. You can either define them as the defaults in the parameters section or pass them in at template creation time using the aws cli. You can also use the CloudFormation console in AWS to upload the JSON and visually edit the parameters and launch from there.
+There are two templates. One is a template for a single instance and the other template is for HA pair. The templates create the SoftNAS instance(s) and the network stack.
+The required parameters used in the template are located at the top of the JSON inside the ```Parameters {}``` section. Most values are empty. You can either define them as the defaults in the parameters section or pass them in at template creation time using the Azure cli.
 
-Once the template launch completes you can browse to the private IP of the instance via  HTTPS and log in. The default password to log into the SoftNAS instance Web UI will be the instance-id. The default username will be 'softnas'
+Once the template launch completes you can browse to the private or public IP of the instance via  HTTPS and log in. The default password to log into the SoftNAS instance Web UI will be passed in at creation time. The default username will be 'softnas'
 
 ### Parameter Keys Explained
 ```
-KeyName : The SSH key that will be used to access via ssh (if ever required).
-MyRegion : The AWS region that you want to launch in.
-NasType : The AWS instance size to launch the SoftNAS image on.
-AllowedSG : Primary security group id that should have access, will be added as default.
-MySubnet1 : Subnet ID to launch primary NAS in.
-MySubnet2 : Subnet ID to launch secondary NAS in (for HA template only)
-SoftnasAMI : The AMI ID for SoftNAS in your region (get from marketplace page).
-AlertEmail : Email address where the mionitoring alerts will be sent to.
-NewIamRole : Create the IAM role if you do not have it created? (yes or no)
-LicenseCapacity : 1TB, 10TB, 20TB, 50TB (Will create that much storage)
-Prefix : This string will prefix all the resource names so you can easily identify them.
-```
-<br/>
-
-### Example of passing in parameters for an HA pair
-```
-# give it a name that will also serve as a prefix tag for all the resources
-name="SoftnasTest"
-```
-### Now launch the template using aws CLI and pass in all the parameters using the --parameters falg:
-```
-aws cloudformation create-stack --region us-west-2 --stack-name $name --template-body file://Softnas_Private_HA_Pair.json --capabilities CAPABILITY_NAMED_IAM --parameters\
- ParameterKey=KeyName,ParameterValue=my_test_key\
- ParameterKey=MyRegion,ParameterValue=us-west-2\
- ParameterKey=NasType,ParameterValue=r5.xlarge\
- ParameterKey=AllowedSG,ParameterValue=sg-0a1f0496a31d6c713\
- ParameterKey=MySubnet1,ParameterValue=subnet-089eaeefe23a044c0\
- ParameterKey=MySubnet2,ParameterValue=subnet-0660fb4fe82c5a7b2\
- ParameterKey=SoftnasAMI,ParameterValue=ami-0453c7da5fbe82bb9\
- ParameterKey=AlertEmail,ParameterValue=MyAlertEmailAddress@mydomain.com\
- ParameterKey=NewIamRole,ParameterValue=no\
- ParameterKey=LicenseCapacity,ParameterValue=1TB\
- ParameterKey=Prefix,ParameterValue="$name"
+dnsLabelPrefix : This string will prefix all the resource names so you can easily identify them.
+region : The Azure region that you want to launch in.
+rg_name : The resource group name, will create if it the name does not exist.
+adminUsername : Defaults to 'softnas', do not change this.
+adminPassword : The password for the user 'softnas'
+vnetCIDR : CIDR for the newly created VNET '10.100.0.0/26'.
+subnetOnePrefix : Subnet one CIDR address '10.100.1.0/24'.
+subnetTwoPrefix : Subnet two CIDR address (if using HA) '10.100.3.0/24'.
+assignPubIp : Assign pub IP or not (yes or no).
+vmSize : The Azure instance size to launch the SoftNAS image on.
+imagePublisher : Leave this at the default 'Softnas'
+imageSku : Image SKU from azure marketplace
+imageOffer : Offer name from Azure marketplace
+imageName : Image name from Azure marketplace
+trustedIp : The IP range to allow access from, added to the NSG.
+vipAddress : The HA VIP to assign (If using HA)
+armClientId : The application-id URI of your application registration or Service Principal.
+armClientSecret : The secret key for the app URI.
+armTenantId : The tenant ID for the subscruption where the App Registrtation can authenticate.
 ```
 <br/>
 
 ### Example of passing in parameters for a single instance
+```
+# give it a name that will also serve as a prefix tag for all the resources
+name="SoftnasAzTest"
+```
+### Now launch the template using Azure CLI and pass in all the parameters using the --parameters flag:
+```
+az group deployment create --resource-group $rg_name --template-file azure_single_network.json --parameters\
+ dnsLabelPrefix="$name"\
+ region="centralus"\
+ rg_name="test_rg"\
+ assignPubIp="Yes"\
+ adminPassword='Pass4W0rd'\
+ vnetCIDR="10.100.0.0/16"\
+ subnetOnePrefix="10.100.1.0/24"\
+ vmSize="Standard_DS2_v2"\
+ imageOffer="buurst_nas"\
+ imageSku="buurst_nas"\
+ imageName="4.4.3"\
+ trustedIp="1.2.3.4/32"\
+ armClientId='https://xyz.com/403161d0-44a1-4716-d85x-abcd430f7911'\ # USE YOUR SPN ID HERE
+ armClientSecret='qwerty~~some-key-azure-assigns'\                   # USE YOUR SECRET KEY HERE
+ armTenantId='1234z=abcdef-1234-1234-abc1-12345678912345'\           # USE YOUR TENANT ID HERE
+ --name $name
+```
+<br/>
+
+### Example of passing in parameters for a HA pair
 
 ```
 # give it a name that will also serve as a prefix tag for all the resources
-name="SoftnasSingle"
+name="SoftnasHA"
 ```
-### Now launch the template using aws CLI and pass in all the parameters using the --parameters falg:
+### Now launch the template using Azure CLI and pass in all the parameters using the --parameters falg:
 ```
-aws cloudformation create-stack --region us-west-2 --stack-name $name --template-body file://Softnas_Private_Instance.json --capabilities CAPABILITY_NAMED_IAM --parameters\
- ParameterKey=KeyName,ParameterValue=my_test_key\
- ParameterKey=MyRegion,ParameterValue=us-west-2\
- ParameterKey=NasType,ParameterValue=r5.xlarge\
- ParameterKey=AllowedSG,ParameterValue=sg-0a1f0496a31d6c713\
- ParameterKey=MySubnet1,ParameterValue=subnet-089eaeefe23a044c0\
- ParameterKey=SoftnasAMI,ParameterValue=ami-0453c7da5fbe82bb9\
- ParameterKey=AlertEmail,ParameterValue=MyAlertEmailAddress@mydomain.com\
- ParameterKey=NewIamRole,ParameterValue=no\
- ParameterKey=LicenseCapacity,ParameterValue=1TB\
- ParameterKey=Prefix,ParameterValue="$name"
+az group deployment create --resource-group "$RG_NAME" --template-file azure_ha_network.json --parameters\
+ dnsLabelPrefix="$NAME"\
+ region="$LOCATION"\
+ rg_name="$RG_NAME"\
+ adminPassword='Pass4W0rd'\
+ vnetCIDR="$CIDR"\
+ subnetOnePrefix="$SUBNET_A"\
+ subnetTwoPrefix="$SUBNET_B"\
+ vipAddress="$VIP"\
+ vmSize="Standard_DS2_v2"\
+ imageOffer="buurst_nas"\
+ imageSku="buurst_nas"\
+ imageName="4.4.3"\
+ trustedIp="73.115.132.246/32"\
+ armClientId="https://buurst.com/903051c0-44a1-4716-a85d-eafd390f7912"\
+ armClientSecret="KqoO~~aBv.VuJQ~H0k81u7zOcuQKo14gHI"\
+ armTenantId="2fcf951c-6242-42c7-abc3-9094d1396599"\
+ --name $NAME
 ```
 
 Reach out to Buurst support if you have any questions
