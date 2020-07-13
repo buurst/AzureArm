@@ -66,7 +66,7 @@ name="SoftnasHA"
 ### Now launch the template using Azure CLI and pass in all the parameters using the --parameters flag:
 ```
 az group deployment create --resource-group 'AzureTestRG' --template-file azure_ha_network.json --parameters\
- dnsLabelPrefix="azuretest"\
+ dnsLabelPrefix="$name"\
  region="centralus"\
  rg_name="AzureTestRG"\
  adminPassword='Pass4W0rd'\
