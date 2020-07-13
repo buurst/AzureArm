@@ -1,0 +1,535 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"dnsLabelPrefix": {
+			"type": "string",
+			"metadata": {
+				"description": "Unique DNS name prefix."
+			}
+		},
+		"region": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "The region the resource is deployed in"
+			}
+		},
+		"rg_name": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Resource group name"
+			}
+		},
+		"adminUsername": {
+			"type": "string",
+			"defaultValue": "softnas",
+			"metadata": {
+				"description": "The required 'softnas' user for the UI."
+			}
+		},
+		"adminPassword": {
+			"type": "string",
+			"metadata": {
+				"description": "The required 'softnas' user password."
+			}
+		},
+		"vnetCIDR": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Network CIDR address for the VNET"
+			}
+		},
+		"subnetOnePrefix": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Network CIDR address for first subnet"
+			}
+		},
+		"subnetTwoPrefix": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Network CIDR address for second subnet"
+			}
+		},
+		"vmSize": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Size of VM"
+			}
+		},
+		"imagePublisher": {
+			"type": "string",
+			"defaultValue": "softnas",
+			"metadata": {
+				"description": "Publisher name"
+			}
+		},
+		"imageSku": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Image SKU"
+			}
+		},
+		"imageOffer": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Image offer"
+			}
+		},
+		"imageName": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Image name"
+			}
+		},
+		"vipAddress": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "HA VIP ADDR"
+			}
+		},
+		"trustedIp": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Your IP address"
+			}
+		},
+		"armClientId": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "App registration URI"
+			}
+		},
+		"armClientSecret": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Password or secret key"
+			}
+		},
+		"armTenantId": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Active directory ID"
+			}
+		}
+	},
+
+	"variables": {
+		"vmOneName": "[concat('softnas01-', deployment().name)]",
+		"vmTwoName": "[concat('softnas02-', deployment().name)]",
+		"nicOneName": "[concat('nic1-', deployment().name)]",
+		"nicTwoName": "[concat('nic2-', deployment().name)]",
+		"subnetOneName": "[concat('subnet1-', deployment().name)]",
+		"subnetTwoName": "[concat('subnet2-', deployment().name)]",
+		"publicIPAddressOneName": "[concat('ip1-', deployment().name)]",
+		"publicIPAddressTwoName": "[concat('ip2-', deployment().name)]",
+		"virtualNetworkName": "[concat('vnet-', deployment().name)]",
+		"networkSecurityGroupName": "[concat('nsg-', deployment().name)]",
+		"availSetName": "[concat('avset-', deployment().name)]",
+		"vnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+		"subnetOneRef": "[concat(variables('vnetID'), '/subnets/', variables('subnetOneName'))]",
+		"subnetTwoRef": "[concat(variables('vnetID'), '/subnets/', variables('subnetTwoName'))]",
+		"softnasReference": {
+			"publisher": "[parameters('imagePublisher')]",
+			"offer": "[parameters('imageOffer')]",
+			"sku": "[parameters('imageSku')]",
+			"version": "[parameters('imageName')]"
+		},
+		"softnasPlan": {
+			"product": "[parameters('imageOffer')]",
+			"name": "[parameters('imageSku')]",
+			"publisher": "[parameters('imagePublisher')]"
+		}
+	},
+
+	"resources": [
+		{
+			"apiVersion": "2018-08-01",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"name": "[variables('publicIPAddressOneName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings": {
+					"domainNameLabel": "[concat('softnas01-', parameters('dnsLabelPrefix'))]"
+				}
+			}
+		},
+		{
+			"apiVersion": "2018-08-01",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"name": "[variables('publicIPAddressTwoName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"publicIPAllocationMethod": "Dynamic",
+				"dnsSettings": {
+					"domainNameLabel": "[concat('softnas02-', parameters('dnsLabelPrefix'))]"
+				}
+			}
+		},
+		{
+      "apiVersion": "2018-10-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('vnetCIDR')]"
+          ]
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2018-10-01",
+          "type": "subnets",
+          "location": "[resourceGroup().location]",
+          "name": "[variables('subnetOneName')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('subnetOnePrefix')]"
+          }
+        },
+        {
+          "apiVersion": "2018-10-01",
+          "type": "subnets",
+          "location": "[resourceGroup().location]",
+          "name": "[variables('subnetTwoName')]",
+          "dependsOn": [
+			"[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+			"[variables('subnetOneName')]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('subnetTwoPrefix')]"
+          }
+        }
+      ]
+    },
+		{
+			"apiVersion": "2018-08-01",
+			"type": "Microsoft.Network/networkInterfaces",
+			"name": "[variables('nicOneName')]",
+			"location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressOneName'))]",
+				"[variables('subnetOneName')]",
+				"[resourceId('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+			],
+			"properties": {
+				"networkSecurityGroup": {
+					"id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+				},
+				"ipConfigurations": [ {
+					"name": "ipconfig1",
+					"properties": {
+						"privateIPAllocationMethod": "Dynamic",
+						"publicIPAddress": {
+						"id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressOneName'))]"
+						},
+						"subnet": {
+							"id": "[variables('subnetOneRef')]"
+							}
+						}
+				} ]
+				}
+			},
+			{
+				"apiVersion": "2018-08-01",
+				"type": "Microsoft.Network/networkInterfaces",
+				"name": "[variables('nicTwoName')]",
+				"location": "[resourceGroup().location]",
+				"dependsOn": [
+					"[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressTwoName'))]",
+					"[variables('subnetTwoName')]",
+					"[resourceId('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+				],
+				"properties": {
+					"networkSecurityGroup": {
+						"id": "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+					},
+					"ipConfigurations": [ {
+						"name": "ipconfig2",
+						"properties": {
+							"privateIPAllocationMethod": "Dynamic",
+							"publicIPAddress": {
+							"id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressTwoName'))]"
+							},
+							"subnet": {
+								"id": "[variables('subnetTwoRef')]"
+								}
+							}
+					} ]
+					}
+				},
+		{
+			"apiVersion": "2018-08-01",
+			"type": "Microsoft.Network/networkSecurityGroups",
+			"name": "[variables('networkSecurityGroupName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"securityRules": [
+					{
+						"name": "ssh_rule",
+						"properties": {
+							"description": "Locks inbound down to ssh default port 22.",
+							"protocol": "Tcp",
+							"sourcePortRange": "*",
+							"destinationPortRange": "22",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "101"
+						}
+					},
+					{
+						"name": "https_rule",
+						"properties": {
+							"description": "Locks inbound down to ssh default port 443.",
+							"protocol": "Tcp",
+							"sourcePortRange": "*",
+							"destinationPortRange": "443",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "102"
+							}
+						},
+						{
+						"name": "nfs4_rule",
+						"properties": {
+							"description": "Allows traffic on port 2049.",
+							"protocol": "*",
+							"sourcePortRange": "*",
+							"destinationPortRange": "2049",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "104"
+							}
+						},
+						{
+						"name": "nfs_portmapper_rule",
+						"properties": {
+							"description": "Allows traffic on port 111.",
+							"protocol": "*",
+							"sourcePortRange": "*",
+							"destinationPortRange": "111",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "105"
+							}
+						},
+						{
+						"name": "cifs_low_rule",
+						"properties": {
+							"description": "Allows traffic on ports 137-139.",
+							"protocol": "*",
+							"sourcePortRange": "*",
+							"destinationPortRange": "137-139",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "106"
+							}
+						},
+						{
+						"name": "cifs_high_rule",
+						"properties": {
+							"description": "Allows traffic on port 445.",
+							"protocol": "*",
+							"sourcePortRange": "*",
+							"destinationPortRange": "445",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "107"
+							}
+						},
+						{
+						"name": "rdp_rule",
+						"properties": {
+							"description": "Allows traffic on port 3389.",
+							"protocol": "*",
+							"sourcePortRange": "*",
+							"destinationPortRange": "3389",
+							"sourceAddressPrefix": "[parameters('trustedIp')]",
+							"destinationAddressPrefix": "*",
+							"access": "Allow",
+							"direction": "Inbound",
+							"priority": "108"
+							}
+						}
+					]
+				}
+		},
+		{
+			"apiVersion": "2018-10-01",
+			"type": "Microsoft.Compute/availabilitySets",
+			"name": "[variables('availSetName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"platformUpdateDomainCount": "2",
+				"platformFaultDomainCount": "2"
+			},
+			"sku": {
+				"name": "Aligned"
+				}
+			},
+			{
+		      "apiVersion": "2018-06-01",
+		      "type": "Microsoft.Compute/virtualMachines",
+		      "name": "[variables('vmOneName')]",
+					"plan": "[variables('softnasPlan')]",
+		      "location": "[resourceGroup().location]",
+		      "dependsOn": [
+		        "[concat('Microsoft.Network/networkInterfaces/', variables('nicOneName'))]",
+						"[concat('Microsoft.Compute/availabilitySets/', variables('availSetName'))]",
+						"[resourceId('Microsoft.Compute/virtualMachines', variables('vmTwoName'))]"
+		      ],
+		      "properties": {
+		        "hardwareProfile": {
+		          "vmSize": "[parameters('vmSize')]"
+		        },
+		        "osProfile": {
+		          "computerName": "[variables('vmOneName')]",
+		          "adminUsername": "[parameters('adminUsername')]",
+							"adminPassword": "[parameters('adminPassword')]",
+		          "linuxConfiguration": {
+		            "disablePasswordAuthentication": false,
+								"provisionVMAgent": true
+		          },
+							"allowExtensionOperations": true
+		        },
+		        "storageProfile": {
+		          "imageReference": "[variables('softnasReference')]",
+		          "osDisk": { "createOption": "FromImage" }
+		        },
+		        "networkProfile": {
+		          "networkInterfaces": [ {"id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicOneName'))]"} ]
+						},
+						"availabilitySet": {
+							"id": "[resourceId('Microsoft.Compute/availabilitySets', variables('availSetName'))]"
+							}
+						}
+		    },
+			{
+		      "apiVersion": "2018-06-01",
+		      "type": "Microsoft.Compute/virtualMachines",
+		      "name": "[variables('vmTwoName')]",
+					"plan": "[variables('softnasPlan')]",
+		      "location": "[resourceGroup().location]",
+		      "dependsOn": [
+		        "[concat('Microsoft.Network/networkInterfaces/', variables('nicTwoName'))]",
+						"[concat('Microsoft.Compute/availabilitySets/', variables('availSetName'))]"
+		      ],
+		      "properties": {
+		        "hardwareProfile": {
+		          "vmSize": "[parameters('vmSize')]"
+		        },
+		        "osProfile": {
+		          "computerName": "[variables('vmTwoName')]",
+		          "adminUsername": "[parameters('adminUsername')]",
+							"adminPassword": "[parameters('adminPassword')]",
+		          "linuxConfiguration": {
+		            "disablePasswordAuthentication": false,
+								"provisionVMAgent": true
+		          },
+							"allowExtensionOperations": true
+		        },
+		        "storageProfile": {
+		          "imageReference": "[variables('softnasReference')]",
+		          "osDisk": { "createOption": "FromImage" }
+		        },
+		        "networkProfile": {
+		          "networkInterfaces": [ {"id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicTwoName'))]"} ]
+						},
+						"availabilitySet": {
+							"id": "[resourceId('Microsoft.Compute/availabilitySets', variables('availSetName'))]"
+							}
+						}
+		    },
+			{
+				"type": "Microsoft.Compute/virtualMachines/extensions",
+				"name": "[concat(variables('vmOneName'), '/', 'configurator')]",
+				"apiVersion": "2019-03-01",
+				"location": "[resourceGroup().location]",
+				"scale": null,
+				"properties": {
+						"autoUpgradeMinorVersion": true,
+					"settings": { "skipDos2Unix": false },
+						"publisher": "Microsoft.Azure.Extensions",
+						"type": "CustomScript",
+						"typeHandlerVersion": "2.0",
+						"protectedSettings": {
+							"commandToExecute": "[concat('sleep 60', '&& softnas-cmd login softnas ', parameters('adminPassword'), '&& softnas-cmd ackagreement', '&& softnas-cmd diskmgmt createAzureDisk username=', parameters('armClientId'), ' password=', parameters('armClientSecret'), ' service_tenant=', parameters('armTenantId'), ' sizeMaxValue=1024 sizeMaxUnits=GB numberDisks=1 diskType=Premium_LRS', '&& sleep 60', '&& softnas-cmd login softnas ', parameters('adminPassword'), '&& /sbin/modprobe zfs', '&& softnas-cmd createpool /dev/sdc -n=pool0 -r=0 -f=on', '&& softnas-cmd createvolume vol_name=vol0 pool=pool0 vol_type=filesystem provisioning=thin exportNFS=on shareCIFS=on dedup=off compression=on enable_snapshot=on sync=standard', '&& softnas-cmd snaprepcommand initsnapreplicate remotenode=', reference(variables('nicTwoName')).ipConfigurations[0].properties.privateIPAddress, ' userid=softnas password=', parameters('adminPassword'), '&& softnas-cmd hacommand install', '&& softnas-cmd hacommand azure_install ', parameters('armClientId'),' ', parameters('armClientSecret'),' ',parameters('vipAddress'),' ', parameters('armTenantId'))]"
+						}
+				},
+				"dependsOn": [
+					"[resourceId('Microsoft.Compute/virtualMachines', variables('vmOneName'))]"
+				]
+			},
+			{
+				"type": "Microsoft.Compute/virtualMachines/extensions",
+				"name": "[concat(variables('vmTwoName'), '/', 'configurator')]",
+				"apiVersion": "2019-03-01",
+				"location": "[resourceGroup().location]",
+				"scale": null,
+				"properties": {
+						"autoUpgradeMinorVersion": true,
+						"settings": { "skipDos2Unix": false },
+						"publisher": "Microsoft.Azure.Extensions",
+						"type": "CustomScript",
+						"typeHandlerVersion": "2.0",
+						"protectedSettings": {
+								"commandToExecute": "[concat('sleep 60', '&& softnas-cmd login softnas ', parameters('adminPassword'), '&& softnas-cmd ackagreement', '&& softnas-cmd diskmgmt createAzureDisk username=', parameters('armClientId'), ' password=', parameters('armClientSecret'), ' service_tenant=', parameters('armTenantId'), ' sizeMaxValue=1024 sizeMaxUnits=GB numberDisks=1 diskType=Premium_LRS', '&& sleep 30', '&& softnas-cmd login softnas ', parameters('adminPassword'), '&& /sbin/modprobe zfs', '&& softnas-cmd createpool /dev/sdc -n=pool0 -r=0 -f=on')]"
+						}
+				},
+				"dependsOn": [
+						"[resourceId('Microsoft.Compute/virtualMachines', variables('vmTwoName'))]"
+				]
+			}
+		],
+
+"outputs": {
+	"SoftNAS-01_Hostname": {
+		"type": "string",
+		"value": "[reference(variables('publicIPAddressOneName')).dnsSettings.fqdn]"
+	},
+	"SoftNAS-02_Hostname": {
+		"type": "string",
+		"value": "[reference(variables('publicIPAddressTwoName')).dnsSettings.fqdn]"
+	},
+	"SoftNAS-02_PrivateIp": {
+		"type": "string",
+		"value": "[reference(concat(variables('nicTwoName'))).ipConfigurations[0].properties.privateIPAddress]"
+	},
+	"SoftNAS-01_PrivateIp": {
+		"type": "string",
+		"value": "[reference(concat(variables('nicOneName'))).ipConfigurations[0].properties.privateIPAddress]"
+	}
+}
+
+}
