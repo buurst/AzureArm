@@ -63,26 +63,26 @@ az group deployment create --resource-group $rg_name --template-file azure_singl
 # give it a name that will also serve as a prefix tag for all the resources
 name="SoftnasHA"
 ```
-### Now launch the template using Azure CLI and pass in all the parameters using the --parameters falg:
+### Now launch the template using Azure CLI and pass in all the parameters using the --parameters flag:
 ```
-az group deployment create --resource-group "$RG_NAME" --template-file azure_ha_network.json --parameters\
- dnsLabelPrefix="$NAME"\
- region="$LOCATION"\
- rg_name="$RG_NAME"\
+az group deployment create --resource-group 'AzureTestRG' --template-file azure_ha_network.json --parameters\
+ dnsLabelPrefix="azuretest"\
+ region="centralus"\
+ rg_name="AzureTestRG"\
  adminPassword='Pass4W0rd'\
- vnetCIDR="$CIDR"\
- subnetOnePrefix="$SUBNET_A"\
- subnetTwoPrefix="$SUBNET_B"\
- vipAddress="$VIP"\
+ vnetCIDR="10.100.0.0/16"\
+ subnetOnePrefix="10.100.0.1/24"\
+ subnetTwoPrefix="10.100.0.3/24"\
+ vipAddress="99.99.99.99"\
  vmSize="Standard_DS2_v2"\
  imageOffer="buurst_nas"\
  imageSku="buurst_nas"\
  imageName="4.4.3"\
- trustedIp="73.115.132.246/32"\
- armClientId="https://buurst.com/903051c0-44a1-4716-a85d-eafd390f7912"\
- armClientSecret="KqoO~~aBv.VuJQ~H0k81u7zOcuQKo14gHI"\
- armTenantId="2fcf951c-6242-42c7-abc3-9094d1396599"\
- --name $NAME
+ trustedIp="1.2.3.4/32"\
+ armClientId='https://xyz.com/403161d0-44a1-4716-d85x-abcd430f7911'\ # USE YOUR SPN ID HERE
+ armClientSecret='qwerty~~some-key-azure-assigns'\                   # USE YOUR SECRET KEY HERE
+ armTenantId='1234z=abcdef-1234-1234-abc1-12345678912345'\           # USE YOUR TENANT ID HERE
+ --name $name
 ```
 
 Reach out to Buurst support if you have any questions
